@@ -5,6 +5,7 @@ info:
   description: |
     Public JSON API for Panda desktop and integrations. Configure clients with
     an `apiUrl` pointing to `/api/v1` and an API token in the Bearer header.
+    Protocol design heavily references https://github.com/tianma-if/edgeever.
 servers:
   - url: http://127.0.0.1:8787/api/v1
 security:

@@ -7,6 +7,11 @@ Canonical types: `crates/proto/src/lib.rs`
 Route table: `crates/server/src/routes/mod.rs`  
 Base URL example: `http://127.0.0.1:8787/api/v1`
 
+Concept mapping, CAS content, etag/revision concurrency, inventory/pull/push
+sync, and SyncHint wakeups heavily reference the protocol design of
+[EdgeEver](https://github.com/tianma-if/edgeever). Server routes and types in
+this repo remain authoritative for Panda clients.
+
 ---
 
 ## Concept mapping

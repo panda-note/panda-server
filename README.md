@@ -38,6 +38,12 @@ curl -fsS http://127.0.0.1:8787/api/v1/health
 
 ## Protocol (`/api/v1`)
 
+**Protocol attribution.** The Panda `/api/v1` protocol design heavily references
+[EdgeEver](https://github.com/tianma-if/edgeever)—especially the notebook/note
+resource model, Markdown-facing API, token auth, incremental sync, export, and
+MCP concepts. Panda Server is a separate Rust implementation; this is not a
+fork of that codebase and wire compatibility is not implied.
+
 The machine-readable contract is [`openapi.yaml`](openapi.yaml). Desktop and
 other long-lived clients should store an `apiUrl` (for example
 `https://notes.example/api/v1`) plus a generated API token, then send
@@ -71,6 +77,7 @@ More detail:
 - [`docs/client-adapter.md`](docs/client-adapter.md) — desktop adapter notes
 - [`docs/mcp.md`](docs/mcp.md) — agent / MCP setup
 - [`docs/multitenancy.md`](docs/multitenancy.md) — workspace isolation
+- Protocol design reference: https://github.com/tianma-if/edgeever
 
 ## Workspace crates
 

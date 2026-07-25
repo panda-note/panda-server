@@ -2,6 +2,11 @@
 
 English docs for running and integrating **Panda Server**.
 
+Protocol shapes and client/sync concepts heavily reference
+[EdgeEver](https://github.com/tianma-if/edgeever). See the root
+[README Protocol section](../README.md#protocol-apiv1) for the canonical
+attribution.
+
 | Doc | Description |
 |-----|-------------|
 | [client-adapter.md](./client-adapter.md) | Desktop / client mapping to `/api/v1` |
