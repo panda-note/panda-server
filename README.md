@@ -4,52 +4,54 @@ High-performance Rust notes server for the **Panda** product. Markdown is the
 canonical note body; hot paths use compact save ACKs, content-addressed storage,
 inventory sync, and WebSocket sync hints.
 
-## Quick start
+## Install
 
-```sh
-cd panda-server
-# If the repo disk is low on space:
-#   set CARGO_TARGET_DIR to a larger volume
-cargo run -p server -- --config config/default.yml
-```
+Published builds ship on every `v*` tag:
 
-Default bind: `127.0.0.1:8787`  
-Bootstrap login: `admin` / `admin123` (change after first login)
+- GitHub Release tarballs: [Releases](https://github.com/panda-note/panda-server/releases)
+- Container image: `ghcr.io/panda-note/panda-server:<tag>` and `:latest`
 
-Pushing a `v*` tag publishes Linux `amd64` / `arm64` tarballs to a GitHub
-Release and a multi-architecture container to
-`ghcr.io/panda-note/panda-server:<tag>` and `:latest`. No package build runs on
-branches or pull requests. Tarball binaries are linked against Debian bookworm
-glibc (≥ 2.36) and only need `libc` / `libm` / `libgcc_s` at runtime (SQLite is
-bundled).
+Tarball binaries target Debian bookworm glibc (≥ 2.36) and only need
+`libc` / `libm` / `libgcc_s` at runtime (SQLite is bundled).
 
-Data and blobs default under `./data`. Schema SQL lives in [`migrations/`](migrations/)
-and is applied automatically on startup.
+Bootstrap login: `admin` / `admin123` (change after first login).
 
-## Docker
-
-```sh
-docker build -t panda-server .
-docker run --rm -p 8787:8787 -v panda-data:/data panda-server
-```
-
-For a published version:
+### Container (GHCR)
 
 ```sh
 docker pull ghcr.io/panda-note/panda-server:v0.1.0
-docker run --rm -p 8787:8787 -v panda-data:/data \
+
+docker run --rm -p 8787:8787 \
+  -v panda-data:/data \
   ghcr.io/panda-note/panda-server:v0.1.0
 ```
 
 The image listens on `0.0.0.0:8787` and stores SQLite + blobs under `/data`.
-Override bind or database with `PANDA_BIND` / `PANDA_DATABASE_URL`, or mount a
-custom config and pass `--config`.
+Override with `PANDA_BIND` / `PANDA_DATABASE_URL`, or mount a custom config and
+pass `--config`. Image defaults live in [`config/docker.yml`](config/docker.yml).
 
 Health check from the host (the image is distroless and has no shell/`curl`):
 
 ```sh
 curl -fsS http://127.0.0.1:8787/api/v1/health
 ```
+
+### Binary (GitHub Release)
+
+```sh
+# amd64
+curl -fsSL -o panda-linux-amd64.tar.gz \
+  https://github.com/panda-note/panda-server/releases/download/v0.1.0/panda-linux-amd64.tar.gz
+tar -xzf panda-linux-amd64.tar.gz
+chmod +x panda
+
+# arm64: use panda-linux-arm64.tar.gz instead
+
+./panda --config config/default.yml
+```
+
+Default bind for the sample config: `127.0.0.1:8787`. Data and blobs default
+under `./data`. Schema SQL in [`migrations/`](migrations/) is applied on startup.
 
 ## Protocol (`/api/v1`)
 
@@ -95,6 +97,23 @@ More detail:
 - [`docs/multitenancy.md`](docs/multitenancy.md) — workspace isolation
 - Protocol design reference: https://github.com/tianma-if/edgeever
 
+## Develop from source
+
+```sh
+cd panda-server
+# If the repo disk is low on space:
+#   set CARGO_TARGET_DIR to a larger volume
+cargo run -p server -- --config config/default.yml
+cargo test -p domain -p server
+```
+
+Local image build (optional; prefer GHCR for deploy):
+
+```sh
+docker build -t panda-server .
+docker run --rm -p 8787:8787 -v panda-data:/data panda-server
+```
+
 ## Workspace crates
 
 `proto`, `domain`, `store`, `blob`, `auth`, `sync`, `mcp`, `server` (bin `panda`)
@@ -105,11 +124,4 @@ The domain crate is named `domain` (not `core`) to avoid clashing with Rust's
 ## Config
 
 See [`config/default.yml`](config/default.yml). Override with `PANDA_BIND`,
-`PANDA_DATABASE_URL`, `PANDA_CONFIG`. Container image defaults are in
-[`config/docker.yml`](config/docker.yml).
-
-## Tests
-
-```sh
-cargo test -p domain -p server
-```
+`PANDA_DATABASE_URL`, `PANDA_CONFIG`.
