@@ -201,5 +201,5 @@ jobs:
           # Anonymous docker pull requires public package visibility.
           gh api --method PATCH \
             -H "Accept: application/vnd.github+json" \
-            "/orgs/${{ github.repository_owner }}/packages/container/panda-server/visibility" \
+            "/orgs/${{ github.repository_owner }}/packages/container/panda-server" \
             -f visibility=public

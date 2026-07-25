@@ -29,6 +29,6 @@ jobs:
           set -euo pipefail
           gh api --method PATCH \
             -H "Accept: application/vnd.github+json" \
-            "/orgs/${{ github.repository_owner }}/packages/container/panda-server/visibility" \
+            "/orgs/${{ github.repository_owner }}/packages/container/panda-server" \
             -f visibility=${{ inputs.visibility }}
           echo "Set panda-server package visibility to ${{ inputs.visibility }}"
