@@ -55,6 +55,7 @@ method.
 |--------|------|-------|
 | GET | `/health` | Liveness |
 | POST | `/auth/login` | Returns Bearer `session_token` |
+| POST | `/auth/register` | Public signup when `auth.allow_registration` (isolated workspace) |
 | GET | `/notebooks` | Notebook tree |
 | GET | `/memos` | Summaries only (keyset cursor) |
 | POST | `/memos` | Create from markdown |

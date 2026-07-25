@@ -98,6 +98,53 @@ impl AuthService {
         Ok(())
     }
 
+    pub async fn register(
+        &self,
+        username: &str,
+        password: &str,
+        device_id: Option<&str>,
+    ) -> PandaResult<(UserRow, String, String, String)> {
+        let username = username.trim();
+        if username.is_empty() {
+            return Err(PandaError::invalid("username required"));
+        }
+        if password.len() < 8 {
+            return Err(PandaError::invalid("password too short"));
+        }
+        if self
+            .store
+            .users()
+            .find_by_username(username)
+            .await?
+            .is_some()
+        {
+            return Err(PandaError::conflict("username already taken"));
+        }
+        let hash = self.hash_password(password)?;
+        let (user_id, ws) = self
+            .store
+            .users()
+            .create_personal_user(username, &hash)
+            .await?;
+        let mut user = self
+            .store
+            .users()
+            .find_by_id(&user_id)
+            .await?
+            .ok_or_else(|| PandaError::internal("registered user missing"))?;
+        user.is_owner = 1;
+        let token = Self::mint_token("pnd_");
+        let token_hash = Self::hash_token(&token);
+        let expires = (chrono::Utc::now() + chrono::Duration::days(self.session_ttl_days))
+            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+        self.store
+            .users()
+            .create_session(&user.id, &ws, &token_hash, device_id, &expires)
+            .await?;
+        self.store.users().mark_login(&user.id).await?;
+        Ok((user, token, ws, expires))
+    }
+
     pub async fn login(
         &self,
         username: &str,

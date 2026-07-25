@@ -34,6 +34,15 @@ paths:
       responses:
         '200': { description: Session token and selected workspace }
         '403': { description: User is not a member of the requested workspace }
+  /auth/register:
+    post:
+      summary: Public signup; creates an isolated Personal workspace (requires auth.allow_registration)
+      security: []
+      responses:
+        '200': { description: Session token and new workspace (same shape as login) }
+        '400': { description: Invalid username or password too short }
+        '403': { description: Registration disabled }
+        '409': { description: Username already taken }
   /auth/session:
     get: { summary: Validate a session or API token, responses: { '200': { description: Session state } } }
   /workspaces:

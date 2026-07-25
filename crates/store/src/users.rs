@@ -219,6 +219,95 @@ impl UserRepo<'_> {
         Ok((user_id, ws_id))
     }
 
+    /// Register a new user with an isolated Personal workspace (Inbox only, no demo tree).
+    pub async fn create_personal_user(
+        &self,
+        username: &str,
+        password_hash: &str,
+    ) -> PandaResult<(String, String)> {
+        let _w = self.store.db.write().await;
+        let now = now_rfc3339();
+        let user_id = new_id();
+        let ws_id = new_id();
+        let mut tx = self
+            .store
+            .db
+            .pool()
+            .begin()
+            .await
+            .map_err(|e| PandaError::internal(e.to_string()))?;
+
+        sqlx::query(
+            "INSERT INTO workspaces (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+        .bind(&ws_id)
+        .bind("Personal")
+        .bind(&now)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| PandaError::internal(e.to_string()))?;
+
+        sqlx::query(
+            "INSERT INTO users (id, username, password_hash, is_owner, is_disabled, created_at, updated_at)
+             VALUES (?, ?, ?, 1, 0, ?, ?)",
+        )
+        .bind(&user_id)
+        .bind(username)
+        .bind(password_hash)
+        .bind(&now)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("UNIQUE") || msg.contains("unique") {
+                PandaError::conflict("username already taken")
+            } else {
+                PandaError::internal(msg)
+            }
+        })?;
+
+        sqlx::query(
+            "INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, 'owner', ?)",
+        )
+        .bind(&ws_id)
+        .bind(&user_id)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| PandaError::internal(e.to_string()))?;
+
+        sqlx::query(
+            "INSERT INTO sync_meta (workspace_id, sync_epoch, updated_at) VALUES (?, 1, ?)",
+        )
+        .bind(&ws_id)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| PandaError::internal(e.to_string()))?;
+
+        let nb_id = new_id();
+        let path = format!("/{nb_id}");
+        sqlx::query(
+            "INSERT INTO notebooks (id, workspace_id, parent_id, name, slug, path, depth, sort_order, is_deleted, created_at, updated_at)
+             VALUES (?, ?, NULL, 'Inbox', 'inbox', ?, 0, 0, 0, ?, ?)",
+        )
+        .bind(&nb_id)
+        .bind(&ws_id)
+        .bind(&path)
+        .bind(&now)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| PandaError::internal(e.to_string()))?;
+
+        tx.commit()
+            .await
+            .map_err(|e| PandaError::internal(e.to_string()))?;
+        Ok((user_id, ws_id))
+    }
+
     pub async fn create_session(
         &self,
         user_id: &str,

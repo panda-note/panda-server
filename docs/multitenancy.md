@@ -35,7 +35,12 @@ bookkeeping and is not used as an authorization decision.
 
 ## Current control-plane limitation
 
-The schema supports many workspaces and memberships, and authentication can
-select among them, but this server does not yet expose self-service workspace
-creation, user registration, invitations, or membership administration.
-Provision those records administratively until that control plane is added.
+Public registration is available when `auth.allow_registration` is `true`
+(`POST /api/v1/auth/register`). Each registered user receives an isolated
+Personal workspace (owner membership + Inbox). With the flag `false` (default),
+registration returns 403.
+
+The schema still supports many workspaces and memberships, and authentication
+can select among them, but this server does not yet expose invitations, joining
+an existing workspace, or membership administration. Provision those records
+administratively until that control plane is added.

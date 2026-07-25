@@ -50,6 +50,32 @@ pub async fn login(
     Ok(proto_or_json(wants_protobuf(&headers), &resp))
 }
 
+pub async fn register(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<impl IntoResponse, AppError> {
+    if !state.cfg.auth.allow_registration {
+        return Err(domain::PandaError::permission_denied("registration disabled").into());
+    }
+    let req: LoginRequest = read_body_proto_or_json(&headers, body).await?;
+    let (user, token, ws, expires) = state
+        .auth
+        .register(&req.username, &req.password, req.device_id.as_deref())
+        .await?;
+    let resp = LoginResponse {
+        user: Some(ProtoUser {
+            id: user.id,
+            username: user.username,
+            is_owner: user.is_owner != 0,
+        }),
+        session_token: token,
+        workspace_id: ws,
+        expires_at: expires,
+    };
+    Ok(proto_or_json(wants_protobuf(&headers), &resp))
+}
+
 pub async fn logout(
     State(state): State<AppState>,
     headers: HeaderMap,

@@ -172,3 +172,50 @@ async fn todo_updates_are_versioned_and_deletes_sync_as_tombstones() {
     assert_eq!(todo.revision, 3);
     assert!(todo.deleted_at.is_some());
 }
+
+#[tokio::test]
+async fn register_creates_isolated_personal_workspace() {
+    let dir = std::env::temp_dir().join(format!("panda-register-{}", uuid::Uuid::now_v7()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let db = dir.join("t.db");
+    let url = format!(
+        "sqlite://{}?mode=rwc",
+        db.to_string_lossy().replace('\\', "/")
+    );
+    let store = store::Store::connect(&url, 65536).await.unwrap();
+    let auth = auth::AuthService::new(store.clone(), 30, 19456, 2, 1);
+    auth.ensure_bootstrap("admin", "admin123").await.unwrap();
+    let (_, _, admin_ws, _) = auth
+        .login("admin", "admin123", Some("admin-device"), None)
+        .await
+        .unwrap();
+
+    let short = auth
+        .register("alice", "short", None)
+        .await
+        .unwrap_err();
+    assert_eq!(short.code, domain::ErrorCode::InvalidArgument);
+
+    let (user, token, alice_ws, _) = auth
+        .register("alice", "alice-pass-ok", Some("alice-device"))
+        .await
+        .unwrap();
+    assert!(!token.is_empty());
+    assert_ne!(alice_ws, admin_ws);
+    assert_eq!(user.username, "alice");
+    assert_eq!(user.is_owner, 1);
+
+    let dup = auth
+        .register("alice", "another-password", None)
+        .await
+        .unwrap_err();
+    assert_eq!(dup.code, domain::ErrorCode::Conflict);
+
+    let alice_nbs = store.notebooks().list(&alice_ws).await.unwrap();
+    assert_eq!(alice_nbs.len(), 1);
+    assert_eq!(alice_nbs[0].name, "Inbox");
+
+    let admin_nbs = store.notebooks().list(&admin_ws).await.unwrap();
+    assert!(admin_nbs.len() > 1);
+    assert!(!admin_nbs.iter().any(|nb| nb.id == alice_nbs[0].id));
+}

@@ -18,6 +18,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/openapi.yaml", get(misc_routes::openapi))
         .route("/api/health", get(misc_routes::health))
         .route("/api/v1/auth/login", post(auth_routes::login))
+        .route("/api/v1/auth/register", post(auth_routes::register))
         .route("/api/v1/auth/logout", post(auth_routes::logout))
         .route("/api/v1/auth/session", get(auth_routes::session))
         .route("/api/v1/workspaces", get(auth_routes::list_workspaces))

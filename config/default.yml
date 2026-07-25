@@ -14,6 +14,8 @@ auth:
   # Bootstrap admin if no users exist
   bootstrap_username: "admin"
   bootstrap_password: "admin123"
+  # Public signup (each user gets an isolated Personal workspace). Keep false in production unless intentional.
+  allow_registration: false
   session_ttl_days: 400
   argon2_memory_kib: 19456
   argon2_iterations: 2

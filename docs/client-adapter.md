@@ -38,12 +38,15 @@ and must not invent a parallel model.
   store `apiUrl` + token locally
 - Password login: `POST /auth/login` → `session_token` (bootstrap / token
   management only; not the steady-state connection mode)
+- Optional public signup: `POST /auth/register` (same body/response shape as
+  login; gated by `auth.allow_registration`, default off). Creates an isolated
+  Personal workspace for the new user.
 - Sessions skip scope checks; API tokens carry scopes (for example
   `memos:read` / `memos:write`)
 - Default bootstrap: `admin` / `admin123`
 
-Related: `POST /auth/login`, `GET /auth/session`, `GET|POST /api-tokens`,
-`DELETE /api-tokens/{id}`
+Related: `POST /auth/login`, `POST /auth/register`, `GET /auth/session`,
+`GET|POST /api-tokens`, `DELETE /api-tokens/{id}`
 
 ---
 

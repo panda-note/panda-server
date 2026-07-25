@@ -32,6 +32,9 @@ pub struct BlobConfig {
 pub struct AuthConfig {
     pub bootstrap_username: String,
     pub bootstrap_password: String,
+    /// When false (default), POST /auth/register returns 403.
+    #[serde(default)]
+    pub allow_registration: bool,
     pub session_ttl_days: i64,
     pub argon2_memory_kib: u32,
     pub argon2_iterations: u32,

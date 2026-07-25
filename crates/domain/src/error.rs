@@ -91,6 +91,14 @@ impl PandaError {
         Self::new(ErrorCode::InvalidArgument, msg)
     }
 
+    pub fn conflict(msg: impl Into<String>) -> Self {
+        Self::new(ErrorCode::Conflict, msg)
+    }
+
+    pub fn permission_denied(msg: impl Into<String>) -> Self {
+        Self::new(ErrorCode::PermissionDenied, msg)
+    }
+
     pub fn not_found(msg: impl Into<String>) -> Self {
         Self::new(ErrorCode::NotFound, msg)
     }
