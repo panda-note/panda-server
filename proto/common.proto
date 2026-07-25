@@ -1,0 +1,56 @@
+syntax = "proto3";
+package panda.v1;
+
+// Canonical .proto for cross-language clients. Rust types live in crates/proto.
+
+message ApiError {
+  string code = 1;
+  string message = 2;
+  bool retryable = 3;
+  optional string current_etag = 4;
+  optional string details_json = 5;
+}
+
+message MemoOpenRequest {
+  uint32 protocol_version = 1;
+  string lease_mode = 2;
+}
+
+message MemoSaveAck {
+  uint32 protocol_version = 1;
+  uint64 revision = 2;
+  string content_hash = 3;
+  string etag = 4;
+  optional string lease_id = 5;
+  string saved_at = 6;
+}
+
+// Independent task, never inferred from a memo's Markdown checkboxes.
+message Todo {
+  string id = 1;
+  string title = 2;
+  string note = 3;
+  string status = 4;
+  optional string due_date = 5;
+  int32 priority = 6;
+  optional string linked_memo_id = 7;
+  bool is_deleted = 8;
+  uint64 revision = 9;
+  string etag = 10;
+  string created_at = 11;
+  string updated_at = 12;
+  optional string completed_at = 13;
+  optional string deleted_at = 14;
+}
+
+message TodoPush {
+  Todo todo = 1;
+  optional uint64 base_revision = 2;
+  optional string if_match_etag = 3;
+}
+
+message SyncHint {
+  uint64 cursor = 1;
+  uint64 sync_epoch = 2;
+  repeated string kinds = 3;
+}

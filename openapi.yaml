@@ -1,0 +1,84 @@
+openapi: 3.1.0
+info:
+  title: Panda API
+  version: 1.0.0
+  description: |
+    Public JSON API for Panda desktop and integrations. Configure clients with
+    an `apiUrl` pointing to `/api/v1` and an API token in the Bearer header.
+servers:
+  - url: http://127.0.0.1:8787/api/v1
+security:
+  - bearerAuth: []
+paths:
+  /mcp:
+    post:
+      summary: Stateless MCP Streamable HTTP JSON-RPC endpoint
+      responses:
+        '200': { description: JSON-RPC response }
+        '204': { description: Notification accepted without a response body }
+        '401': { description: Bearer token required }
+  /api/v1/mcp:
+    post:
+      summary: Alias of the stateless MCP Streamable HTTP endpoint
+      responses:
+        '200': { description: JSON-RPC response }
+        '204': { description: Notification accepted without a response body }
+        '401': { description: Bearer token required }
+  /health:
+    get: { summary: Liveness probe, security: [], responses: { '200': { description: Server health } } }
+  /auth/login:
+    post:
+      summary: Password login; optional workspace_id selects one of the user's memberships
+      security: []
+      responses:
+        '200': { description: Session token and selected workspace }
+        '403': { description: User is not a member of the requested workspace }
+  /auth/session:
+    get: { summary: Validate a session or API token, responses: { '200': { description: Session state } } }
+  /workspaces:
+    get:
+      summary: List workspace memberships; API tokens only see their bound workspace
+      responses: { '200': { description: Workspace memberships and current workspace } }
+  /notebooks:
+    get: { summary: List notebooks, responses: { '200': { description: Notebook list } } }
+    post: { summary: Create notebook, responses: { '200': { description: Notebook } } }
+  /memos:
+    get: { summary: List memo summaries, responses: { '200': { description: Cursor page } } }
+    post: { summary: Create memo from Markdown, responses: { '200': { description: Memo detail } } }
+  /memos/{id}/open:
+    post:
+      summary: Open memo content and optionally acquire an edit lease
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Memo detail, lease and ETag } }
+  /memos/{id}/save:
+    post:
+      summary: Save memo using ETag/revision optimistic concurrency
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Save acknowledgement }, '409': { description: Revision conflict } }
+  /memos/batch/move:
+    post: { summary: Move memos, responses: { '200': { description: Move count } } }
+  /memos/batch/delete:
+    post: { summary: Soft-delete or permanently delete memos, responses: { '200': { description: Success } } }
+  /memos/{id}/resources:
+    post: { summary: Upload a multipart resource, responses: { '200': { description: Resource } } }
+  /todos:
+    get:
+      summary: List independent todos
+      parameters:
+        - { name: filter, in: query, schema: { type: string, enum: [inbox, today, upcoming, completed, all] } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
+      responses: { '200': { description: Cursor page of todos } }
+    post: { summary: Create todo, responses: { '200': { description: Todo } } }
+  /todos/{id}:
+    get: { summary: Get todo, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '200': { description: Todo } } }
+    patch: { summary: Update todo with base_revision and if_match_etag concurrency guards, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '200': { description: Todo }, '409': { description: Revision conflict } } }
+    delete: { summary: Soft-delete todo, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '200': { description: Success } } }
+  /todos/{id}/complete:
+    post: { summary: Complete or restore todo, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '200': { description: Todo } } }
+  /api-tokens:
+    get: { summary: List API tokens, responses: { '200': { description: Token metadata } } }
+    post: { summary: Create API token; the plaintext token is returned once, responses: { '200': { description: New token } } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: API token }

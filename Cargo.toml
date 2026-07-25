@@ -1,0 +1,66 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/proto",
+    "crates/domain",
+    "crates/store",
+    "crates/blob",
+    "crates/auth",
+    "crates/sync",
+    "crates/mcp",
+    "crates/server",
+]
+default-members = ["crates/server"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Panda"]
+
+[workspace.dependencies]
+proto = { path = "crates/proto" }
+domain = { path = "crates/domain" }
+store = { path = "crates/store" }
+blob = { path = "crates/blob" }
+auth = { path = "crates/auth" }
+sync = { path = "crates/sync" }
+mcp = { path = "crates/mcp" }
+
+anyhow = "1"
+argon2 = "0.5"
+async-trait = "0.1"
+axum = { version = "0.8", features = ["multipart", "ws"] }
+base64 = "0.22"
+blake3 = "1"
+bytes = "1"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["derive", "env"] }
+diffy = "0.4"
+futures = "0.3"
+hex = "0.4"
+http = "1"
+mime_guess = "2"
+parking_lot = "0.12"
+prost = "0.13"
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "chrono", "uuid", "migrate", "macros"] }
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["io"] }
+serde_yaml = "0.9"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip", "limit"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["serde", "v7", "v4"] }
+zstd = "0.13"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = "z"

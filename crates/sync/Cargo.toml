@@ -1,0 +1,12 @@
+[package]
+name = "sync"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+parking_lot = { workspace = true }
+proto = { workspace = true }
+store = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

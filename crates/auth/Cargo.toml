@@ -1,0 +1,16 @@
+[package]
+name = "auth"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+argon2 = { workspace = true }
+base64 = { workspace = true }
+blake3 = { workspace = true }
+chrono = { workspace = true }
+domain = { workspace = true }
+hex = { workspace = true }
+rand = { workspace = true }
+serde_json = { workspace = true }
+store = { workspace = true }
+tracing = { workspace = true }

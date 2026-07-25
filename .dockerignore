@@ -1,0 +1,14 @@
+.git
+.target
+data
+*.db
+*.db-*
+.cargo
+.idea
+.vscode
+**/*.md
+!README.md
+docs
+AGENTS.md
+.dockerignore
+Dockerfile

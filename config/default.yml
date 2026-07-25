@@ -1,0 +1,31 @@
+server:
+  bind: "127.0.0.1:8787"
+  protocol_version: 1
+
+database:
+  # sqlite: sqlite://./data/panda.db  |  postgres: postgres://user:pass@localhost/panda
+  url: "sqlite://./data/panda.db?mode=rwc"
+
+blob:
+  root: "./data/blobs"
+  inline_threshold_bytes: 65536
+
+auth:
+  # Bootstrap admin if no users exist
+  bootstrap_username: "admin"
+  bootstrap_password: "admin123"
+  session_ttl_days: 400
+  argon2_memory_kib: 19456
+  argon2_iterations: 2
+  argon2_parallelism: 1
+
+sync:
+  device_cursor_ttl_days: 90
+  revision_snapshot_interval_secs: 300
+  compaction_interval_secs: 3600
+
+limits:
+  max_request_body_bytes: 33554432
+  max_batch_size: 100
+  max_memos_per_workspace: 500000
+  max_blob_bytes_per_workspace: 107374182400
