@@ -1,0 +1,115 @@
+# Build portable Linux packages for amd64/arm64.
+#
+# Toolchain/runtime baseline matches Dockerfile: Debian bookworm (glibc 2.36).
+# The release binary is dynamically linked only against libc/libm/libgcc_s
+# (SQLite is bundled via sqlx). Runs on Debian 12+, Ubuntu 24.04+, and newer.
+name: Release Linux packages
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: linux-${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: arm64
+            platform: linux/arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build binary (${{ matrix.arch }})
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: binary
+          platforms: ${{ matrix.platform }}
+          outputs: type=local,dest=dist-out
+          cache-from: type=gha,scope=panda-linux-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=panda-linux-${{ matrix.arch }}
+
+      - name: Package tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x dist-out/panda
+          file dist-out/panda
+          # Confirm we did not accidentally pull in host-only libs beyond libc/libgcc.
+          if command -v x86_64-linux-gnu-readelf >/dev/null && [[ "${{ matrix.arch }}" == "amd64" ]]; then
+            x86_64-linux-gnu-readelf -d dist-out/panda | tee /tmp/panda-dyn.txt
+            grep -E 'Shared library: \[lib(c|m|gcc_s)\.so' /tmp/panda-dyn.txt
+            if grep -E 'Shared library: \[(libssl|libcrypto|libsqlite3|libstdc\+\+)' /tmp/panda-dyn.txt; then
+              echo "unexpected shared library dependency" >&2
+              exit 1
+            fi
+          fi
+
+          staging="panda-linux-${{ matrix.arch }}"
+          mkdir -p "${staging}"
+          cp dist-out/panda "${staging}/panda"
+          chmod 0755 "${staging}/panda"
+          cp config/default.yml "${staging}/config.yml"
+          cp openapi.yaml "${staging}/openapi.yaml"
+          cat > "${staging}/README.txt" <<'EOF'
+Panda Server Linux package
+
+Requires glibc >= 2.36 (Debian 12 bookworm / Ubuntu 24.04 or newer).
+Dynamic deps: libc, libm, libgcc_s only (SQLite is bundled).
+
+Run:
+  ./panda --config ./config.yml
+EOF
+          tar -czf "${staging}.tar.gz" "${staging}"
+          ls -lh "${staging}.tar.gz"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: panda-linux-${{ matrix.arch }}
+          path: panda-linux-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: panda-linux-*
+          merge-multiple: true
+          path: packages
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packages/*.tar.gz
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

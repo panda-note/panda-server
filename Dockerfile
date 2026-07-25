@@ -10,9 +10,16 @@ COPY migrations ./migrations
 COPY openapi.yaml ./openapi.yaml
 COPY proto ./proto
 
+# Newer rustc can ICE on dead_code lint for this workspace; keep builds green.
+ENV RUSTFLAGS="-A dead_code"
+
 RUN cargo build --release -p server \
     && strip /src/target/release/panda \
     && mkdir -p /out/data/blobs
+
+# CI extracts just the binary for linux/amd64 and linux/arm64 packages.
+FROM scratch AS binary
+COPY --from=builder /src/target/release/panda /panda
 
 FROM gcr.io/distroless/cc-debian12:nonroot
 WORKDIR /

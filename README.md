@@ -16,6 +16,11 @@ cargo run -p server -- --config config/default.yml
 Default bind: `127.0.0.1:8787`  
 Bootstrap login: `admin` / `admin123` (change after first login)
 
+GitHub Actions builds Linux `amd64` / `arm64` tarballs on `main`, PRs, and
+`v*` tags (artifacts; tags also publish a GitHub Release). Binaries are linked
+against Debian bookworm glibc (≥ 2.36) and only need `libc` / `libm` /
+`libgcc_s` at runtime (SQLite is bundled).
+
 Data and blobs default under `./data`. Schema SQL lives in [`migrations/`](migrations/)
 and is applied automatically on startup.
 
