@@ -1,9 +1,7 @@
-# Build portable Linux packages for amd64/arm64.
-#
-# Toolchain/runtime baseline matches Dockerfile: Debian bookworm (glibc 2.36).
-# The release binary is dynamically linked only against libc/libm/libgcc_s
-# (SQLite is bundled via sqlx). Runs on Debian 12+, Ubuntu 24.04+, and newer.
 name: Release Linux packages
+
+# Baseline: Debian bookworm (glibc 2.36). Binary links libc/libm/libgcc_s only;
+# SQLite is bundled. Suitable for Debian 12+ / Ubuntu 24.04+.
 
 on:
   push:
@@ -58,31 +56,29 @@ jobs:
           set -euo pipefail
           test -x dist-out/panda
           file dist-out/panda
-          # Confirm we did not accidentally pull in host-only libs beyond libc/libgcc.
-          if command -v x86_64-linux-gnu-readelf >/dev/null && [[ "${{ matrix.arch }}" == "amd64" ]]; then
-            x86_64-linux-gnu-readelf -d dist-out/panda | tee /tmp/panda-dyn.txt
+          if [[ "${{ matrix.arch }}" == "amd64" ]]; then
+            readelf -d dist-out/panda | tee /tmp/panda-dyn.txt
             grep -E 'Shared library: \[lib(c|m|gcc_s)\.so' /tmp/panda-dyn.txt
             if grep -E 'Shared library: \[(libssl|libcrypto|libsqlite3|libstdc\+\+)' /tmp/panda-dyn.txt; then
               echo "unexpected shared library dependency" >&2
               exit 1
             fi
           fi
-
           staging="panda-linux-${{ matrix.arch }}"
           mkdir -p "${staging}"
           cp dist-out/panda "${staging}/panda"
           chmod 0755 "${staging}/panda"
           cp config/default.yml "${staging}/config.yml"
           cp openapi.yaml "${staging}/openapi.yaml"
-          cat > "${staging}/README.txt" <<'EOF'
-Panda Server Linux package
-
-Requires glibc >= 2.36 (Debian 12 bookworm / Ubuntu 24.04 or newer).
-Dynamic deps: libc, libm, libgcc_s only (SQLite is bundled).
-
-Run:
-  ./panda --config ./config.yml
-EOF
+          printf '%s\n' \
+            'Panda Server Linux package' \
+            '' \
+            'Requires glibc >= 2.36 (Debian 12 bookworm / Ubuntu 24.04 or newer).' \
+            'Dynamic deps: libc, libm, libgcc_s only (SQLite is bundled).' \
+            '' \
+            'Run:' \
+            '  ./panda --config ./config.yml' \
+            > "${staging}/README.txt"
           tar -czf "${staging}.tar.gz" "${staging}"
           ls -lh "${staging}.tar.gz"
 
