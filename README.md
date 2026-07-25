@@ -16,10 +16,12 @@ cargo run -p server -- --config config/default.yml
 Default bind: `127.0.0.1:8787`  
 Bootstrap login: `admin` / `admin123` (change after first login)
 
-GitHub Actions builds Linux `amd64` / `arm64` tarballs on `main`, PRs, and
-`v*` tags (artifacts; tags also publish a GitHub Release). Binaries are linked
-against Debian bookworm glibc (≥ 2.36) and only need `libc` / `libm` /
-`libgcc_s` at runtime (SQLite is bundled).
+Pushing a `v*` tag publishes Linux `amd64` / `arm64` tarballs to a GitHub
+Release and a multi-architecture container to
+`ghcr.io/panda-note/panda-server:<tag>` and `:latest`. No package build runs on
+branches or pull requests. Tarball binaries are linked against Debian bookworm
+glibc (≥ 2.36) and only need `libc` / `libm` / `libgcc_s` at runtime (SQLite is
+bundled).
 
 Data and blobs default under `./data`. Schema SQL lives in [`migrations/`](migrations/)
 and is applied automatically on startup.
@@ -29,6 +31,14 @@ and is applied automatically on startup.
 ```sh
 docker build -t panda-server .
 docker run --rm -p 8787:8787 -v panda-data:/data panda-server
+```
+
+For a published version:
+
+```sh
+docker pull ghcr.io/panda-note/panda-server:v0.1.0
+docker run --rm -p 8787:8787 -v panda-data:/data \
+  ghcr.io/panda-note/panda-server:v0.1.0
 ```
 
 The image listens on `0.0.0.0:8787` and stores SQLite + blobs under `/data`.
