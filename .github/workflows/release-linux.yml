@@ -192,14 +192,3 @@ jobs:
             -t "${image}:latest" \
             "${args[@]}"
           docker buildx imagetools inspect "${image}:${tag}"
-
-      - name: Make GHCR package public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          # Anonymous docker pull requires public package visibility.
-          gh api --method PATCH \
-            -H "Accept: application/vnd.github+json" \
-            "/orgs/${{ github.repository_owner }}/packages/container/panda-server" \
-            -f visibility=public
