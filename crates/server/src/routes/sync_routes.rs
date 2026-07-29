@@ -365,6 +365,7 @@ pub async fn push(
                         &todo.id,
                         push.base_revision.map(|v| v as i64),
                         push.if_match_etag.as_deref(),
+                        false,
                     )
                     .await
                 {

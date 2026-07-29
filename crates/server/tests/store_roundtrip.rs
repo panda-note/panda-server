@@ -157,6 +157,7 @@ async fn todo_updates_are_versioned_and_deletes_sync_as_tombstones() {
             &updated.id,
             Some(updated.revision),
             Some(&updated.etag),
+            false,
         )
         .await
         .unwrap();
@@ -171,6 +172,47 @@ async fn todo_updates_are_versioned_and_deletes_sync_as_tombstones() {
     assert!(todo.is_deleted);
     assert_eq!(todo.revision, 3);
     assert!(todo.deleted_at.is_some());
+
+    let (trashed, _) = store
+        .todos()
+        .list(
+            &workspace_id,
+            store::TodoListQuery {
+                filter: Some("trash".into()),
+                limit: 20,
+                cursor: None,
+            },
+        )
+        .await
+        .unwrap();
+    let trashed = trashed
+        .into_iter()
+        .find(|todo| todo.id == updated.id)
+        .unwrap();
+    store
+        .todos()
+        .delete(
+            &workspace_id,
+            &trashed.id,
+            Some(trashed.revision),
+            Some(&trashed.etag),
+            true,
+        )
+        .await
+        .unwrap();
+    let (trashed, _) = store
+        .todos()
+        .list(
+            &workspace_id,
+            store::TodoListQuery {
+                filter: Some("trash".into()),
+                limit: 20,
+                cursor: None,
+            },
+        )
+        .await
+        .unwrap();
+    assert!(trashed.is_empty());
 }
 
 #[tokio::test]

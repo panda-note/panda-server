@@ -83,7 +83,7 @@ paths:
   /todos/{id}:
     get: { summary: Get todo, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '200': { description: Todo } } }
     patch: { summary: Update todo with base_revision and if_match_etag concurrency guards, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '200': { description: Todo }, '409': { description: Revision conflict } } }
-    delete: { summary: Soft-delete todo, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '200': { description: Success } } }
+    delete: { summary: Soft-delete todo, or permanently delete a trashed todo with permanent=true, parameters: [{ name: id, in: path, required: true, schema: { type: string } }, { name: permanent, in: query, schema: { type: boolean } }], responses: { '200': { description: Success } } }
   /todos/{id}/complete:
     post: { summary: Complete or restore todo, parameters: [{ name: id, in: path, required: true, schema: { type: string } }], responses: { '200': { description: Todo } } }
   /api-tokens:

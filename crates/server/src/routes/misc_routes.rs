@@ -15,7 +15,7 @@ pub async fn health(headers: HeaderMap) -> impl IntoResponse {
     let resp = HealthResponse {
         ok: true,
         name: "panda".into(),
-        version: env!("CARGO_PKG_VERSION").into(),
+        version: env!("PANDA_BUILD_VERSION").into(),
         protocol_version: PROTOCOL_VERSION,
     };
     proto_or_json(wants_protobuf(&headers), &resp)

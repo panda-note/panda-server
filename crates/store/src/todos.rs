@@ -308,9 +308,14 @@ impl TodoRepo<'_> {
         id: &str,
         base_revision: Option<i64>,
         if_match_etag: Option<&str>,
+        permanent: bool,
     ) -> PandaResult<()> {
         let _w = self.store.db.write().await;
-        let old = self.get(workspace_id, id).await?;
+        let old = if permanent {
+            self.get_including_deleted(workspace_id, id).await?
+        } else {
+            self.get(workspace_id, id).await?
+        };
         if let Some(rev) = base_revision {
             if rev != old.revision {
                 return Err(PandaError::new(
@@ -326,6 +331,30 @@ impl TodoRepo<'_> {
                     "todo etag conflict",
                 ));
             }
+        }
+        if permanent {
+            if !old.is_deleted {
+                return Err(PandaError::invalid(
+                    "todo must be in trash before permanent deletion",
+                ));
+            }
+            let changed = sqlx::query(
+                "DELETE FROM todos WHERE workspace_id=? AND id=? AND is_deleted=1 AND revision=? AND etag=?",
+            )
+            .bind(workspace_id)
+            .bind(id)
+            .bind(old.revision)
+            .bind(&old.etag)
+            .execute(self.store.db.pool())
+            .await
+            .map_err(|error| PandaError::internal(error.to_string()))?;
+            if changed.rows_affected() != 1 {
+                return Err(PandaError::new(
+                    domain::ErrorCode::Conflict,
+                    "todo revision conflict",
+                ));
+            }
+            return self.append_unlocked(workspace_id, &old, "delete").await;
         }
         let now = now_rfc3339();
         let revision = old.revision + 1;

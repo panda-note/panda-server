@@ -25,6 +25,8 @@ pub struct CompleteRequest {
 pub struct DeleteQuery {
     pub base_revision: Option<i64>,
     pub if_match_etag: Option<String>,
+    #[serde(default)]
+    pub permanent: bool,
 }
 #[derive(Deserialize)]
 pub struct RestoreRequest {
@@ -152,6 +154,7 @@ pub async fn delete_todo(
             &id,
             q.base_revision,
             q.if_match_etag.as_deref(),
+            q.permanent,
         )
         .await?;
     hint_after_change(
