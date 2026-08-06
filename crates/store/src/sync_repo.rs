@@ -2,6 +2,7 @@ use crate::{now_rfc3339, Store};
 use domain::{PandaError, PandaResult};
 use proto::{SyncChange, SyncInventoryResponse, PROTOCOL_VERSION};
 use sqlx::FromRow;
+use std::collections::HashMap;
 
 pub struct SyncRepo<'a> {
     pub store: &'a Store,
@@ -43,14 +44,6 @@ impl SyncRepo<'_> {
         fold_key: &str,
     ) -> PandaResult<u64> {
         let now = now_rfc3339();
-        // Fold: delete older same fold_key rows (keep log smaller).
-        sqlx::query("DELETE FROM sync_changes WHERE workspace_id = ? AND fold_key = ?")
-            .bind(workspace_id)
-            .bind(fold_key)
-            .execute(self.store.db.pool())
-            .await
-            .ok();
-
         let res = sqlx::query(
             "INSERT INTO sync_changes (workspace_id, entity_type, entity_id, operation, payload_kind, payload_json, fold_key, created_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -98,7 +91,7 @@ impl SyncRepo<'_> {
     ) -> PandaResult<(Vec<SyncChange>, u64, bool)> {
         let limit = limit.clamp(1, 500);
         let rows: Vec<ChangeRow> = sqlx::query_as(
-            "SELECT id, entity_type, entity_id, operation, payload_kind, payload_json, created_at
+            "SELECT id, entity_type, entity_id, operation, payload_kind, payload_json, fold_key, created_at
              FROM sync_changes WHERE workspace_id = ? AND id > ? ORDER BY id ASC LIMIT ?",
         )
         .bind(workspace_id)
@@ -115,6 +108,15 @@ impl SyncRepo<'_> {
             rows.pop();
         }
         let cursor = rows.last().map(|r| r.id as u64).unwrap_or(after);
+        // Fold only the page being returned. Keeping the append-only log above
+        // the cursor is important: deleting an older row at write time could
+        // make a client that was offline skip the entity entirely.
+        let mut latest = HashMap::new();
+        for row in rows {
+            latest.insert(row.fold_key.clone(), row);
+        }
+        let mut rows: Vec<_> = latest.into_values().collect();
+        rows.sort_by_key(|row| row.id);
         let changes = rows
             .into_iter()
             .map(|r| SyncChange {
@@ -250,5 +252,6 @@ struct ChangeRow {
     operation: String,
     payload_kind: String,
     payload_json: Option<String>,
+    fold_key: String,
     created_at: String,
 }

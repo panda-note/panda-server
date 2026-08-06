@@ -151,7 +151,7 @@ impl McpHandler {
                         workspace_id,
                         required_string(&args, "name")?,
                         optional_string(&args, "parent_id").as_deref(),
-                        bounded_i32(&args, "sort_order", 0)?,
+                        Some(bounded_i32(&args, "sort_order", 0)?),
                     )
                     .await?;
                 json_value(notebook)
@@ -337,6 +337,7 @@ impl McpHandler {
                     .create(
                         workspace_id,
                         TodoCreate {
+                            id: None,
                             title: required_string(&args, "title")?.to_string(),
                             note: optional_string(&args, "note").unwrap_or_default(),
                             status: optional_string(&args, "status"),

@@ -156,6 +156,7 @@ async fn workspace_membership_and_content_boundaries_are_enforced() {
         .create(
             &workspace_b,
             TodoCreate {
+                id: None,
                 title: "Cross tenant link".into(),
                 note: String::new(),
                 status: None,

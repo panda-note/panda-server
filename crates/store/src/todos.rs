@@ -30,6 +30,8 @@ pub struct Todo {
 
 #[derive(Debug, Deserialize)]
 pub struct TodoCreate {
+    #[serde(default)]
+    pub id: Option<String>,
     pub title: String,
     #[serde(default)]
     pub note: String,
@@ -238,7 +240,7 @@ impl TodoRepo<'_> {
         Self::validate(&status, priority)?;
         self.require_linked_memo(workspace_id, req.linked_memo_id.as_deref())
             .await?;
-        let id = new_id();
+        let id = req.id.unwrap_or_else(new_id);
         let now = now_rfc3339();
         let etag = format_etag(1, &id);
         let completed = if status == "completed" {
@@ -247,6 +249,20 @@ impl TodoRepo<'_> {
             None
         };
         let _w = self.store.db.write().await;
+        // A sync retry reuses the client-generated id. Return the existing
+        // record instead of creating a second task.
+        if let Some(existing) = sqlx::query_as::<_, TodoRow>(
+            "SELECT id,title,note,status,due_date,priority,linked_memo_id,is_deleted,revision,etag,created_at,updated_at,completed_at,deleted_at
+             FROM todos WHERE workspace_id=? AND id=?",
+        )
+        .bind(workspace_id)
+        .bind(&id)
+        .fetch_optional(self.store.db.pool())
+        .await
+        .map_err(|e| PandaError::internal(e.to_string()))?
+        {
+            return Ok(existing.into());
+        }
         sqlx::query("INSERT INTO todos(id,workspace_id,title,note,status,due_date,priority,linked_memo_id,is_deleted,revision,etag,created_at,updated_at,completed_at) VALUES(?,?,?,?,?,?,?,?,0,1,?,?,?,?)").bind(&id).bind(workspace_id).bind(req.title.trim()).bind(req.note).bind(&status).bind(req.due_date).bind(priority).bind(req.linked_memo_id).bind(&etag).bind(&now).bind(&now).bind(completed).execute(self.store.db.pool()).await.map_err(|e| PandaError::internal(e.to_string()))?;
         let todo = self.get(workspace_id, &id).await?;
         self.append_unlocked(workspace_id, &todo, "upsert").await?;

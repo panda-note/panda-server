@@ -361,6 +361,10 @@ pub struct SyncPushItem {
     pub markdown: Option<String>,
     #[prost(message, optional, tag = "8")]
     pub todo: Option<TodoPush>,
+    /// Previous operation in the same entity's local journal. The server does
+    /// not need to interpret this value; clients use it to preserve ordering.
+    #[prost(string, optional, tag = "9")]
+    pub depends_on_client_op_id: Option<String>,
 }
 
 #[derive(Clone, PartialEq, Message, Serialize, Deserialize)]
@@ -510,6 +514,14 @@ pub struct CreateNotebookRequest {
 pub struct RenameNotebookRequest {
     #[prost(string, tag = "1")]
     pub name: String,
+}
+
+#[derive(Clone, PartialEq, Message, Serialize, Deserialize)]
+pub struct ReorderNotebooksRequest {
+    #[prost(string, optional, tag = "1")]
+    pub parent_id: Option<String>,
+    #[prost(string, repeated, tag = "2")]
+    pub notebook_ids: Vec<String>,
 }
 
 #[derive(Clone, PartialEq, Message, Serialize, Deserialize)]

@@ -231,6 +231,20 @@ CREATE TABLE IF NOT EXISTS device_cursors (
     PRIMARY KEY (workspace_id, device_id)
 );
 
+-- Durable acknowledgement for sync push operations. The client operation id
+-- is stable across retries, so a lost response cannot apply a mutation twice.
+CREATE TABLE IF NOT EXISTS sync_operations (
+    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    device_id TEXT NOT NULL,
+    client_op_id TEXT NOT NULL,
+    response_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, device_id, client_op_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sync_operations_created
+    ON sync_operations(workspace_id, created_at);
+
 CREATE TABLE IF NOT EXISTS search_dirty (
     memo_id TEXT PRIMARY KEY NOT NULL REFERENCES memos(id) ON DELETE CASCADE,
     workspace_id TEXT NOT NULL,

@@ -99,8 +99,21 @@ pub async fn push(
     if req.items.len() > state.cfg.limits.max_batch_size {
         return Err(AppError(PandaError::invalid("push batch too large")));
     }
+    let device_id = if req.device_id.trim().is_empty() {
+        ctx.device_id.clone().unwrap_or_else(|| "legacy".into())
+    } else {
+        req.device_id.clone()
+    };
     let mut results = Vec::new();
     for item in req.items {
+        if !item.client_op_id.is_empty() {
+            if let Some(cached) =
+                load_push_result(&state, &ctx.workspace_id, &device_id, &item.client_op_id).await?
+            {
+                results.push(cached);
+                continue;
+            }
+        }
         let result = match item.op.as_str() {
             "memo.create" => {
                 let notebook = item.notebook_id.clone().unwrap_or_default();
@@ -278,6 +291,7 @@ pub async fn push(
                     .create(
                         &ctx.workspace_id,
                         TodoCreate {
+                            id: Some(todo.id.clone()),
                             title: todo.title,
                             note: todo.note,
                             status: Some(todo.status),
@@ -350,6 +364,42 @@ pub async fn push(
                     },
                 }
             }
+            "todo.restore" => {
+                let Some(push) = item.todo else {
+                    return Err(AppError(PandaError::invalid("todo payload required")));
+                };
+                let Some(todo) = push.todo else {
+                    return Err(AppError(PandaError::invalid("todo payload required")));
+                };
+                match state
+                    .store
+                    .todos()
+                    .restore(
+                        &ctx.workspace_id,
+                        &todo.id,
+                        push.base_revision.map(|v| v as i64),
+                        push.if_match_etag.as_deref(),
+                    )
+                    .await
+                {
+                    Ok(todo) => SyncPushItemResult {
+                        client_op_id: item.client_op_id,
+                        ok: true,
+                        error_code: None,
+                        save_ack: None,
+                        memo_id: None,
+                        todo: Some(todo.to_proto()),
+                    },
+                    Err(e) => SyncPushItemResult {
+                        client_op_id: item.client_op_id,
+                        ok: false,
+                        error_code: Some(e.code.as_str().to_string()),
+                        save_ack: None,
+                        memo_id: None,
+                        todo: None,
+                    },
+                }
+            }
             "todo.delete" => {
                 let Some(push) = item.todo else {
                     return Err(AppError(PandaError::invalid("todo payload required")));
@@ -396,6 +446,9 @@ pub async fn push(
                 todo: None,
             },
         };
+        if result.ok && !result.client_op_id.is_empty() {
+            store_push_result(&state, &ctx.workspace_id, &device_id, &result).await?;
+        }
         results.push(result);
     }
     hint_after_change(
@@ -410,6 +463,53 @@ pub async fn push(
         wants_protobuf(&headers),
         &SyncPushResponse { results },
     ))
+}
+
+async fn load_push_result(
+    state: &AppState,
+    workspace_id: &str,
+    device_id: &str,
+    client_op_id: &str,
+) -> Result<Option<SyncPushItemResult>, AppError> {
+    let row: Option<(String,)> = sqlx::query_as(
+        "SELECT response_json FROM sync_operations
+         WHERE workspace_id = ? AND device_id = ? AND client_op_id = ?",
+    )
+    .bind(workspace_id)
+    .bind(device_id)
+    .bind(client_op_id)
+    .fetch_optional(state.store.db.pool())
+    .await
+    .map_err(|e| AppError(PandaError::internal(format!("load sync operation: {e}"))))?;
+    row.map(|(json,)| {
+        serde_json::from_str(&json)
+            .map_err(|e| AppError(PandaError::internal(format!("decode sync operation: {e}"))))
+    })
+    .transpose()
+}
+
+async fn store_push_result(
+    state: &AppState,
+    workspace_id: &str,
+    device_id: &str,
+    result: &SyncPushItemResult,
+) -> Result<(), AppError> {
+    let response_json = serde_json::to_string(result)
+        .map_err(|e| AppError(PandaError::internal(format!("encode sync operation: {e}"))))?;
+    sqlx::query(
+        "INSERT OR IGNORE INTO sync_operations
+         (workspace_id, device_id, client_op_id, response_json, created_at)
+         VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(workspace_id)
+    .bind(device_id)
+    .bind(&result.client_op_id)
+    .bind(response_json)
+    .bind(chrono::Utc::now().to_rfc3339())
+    .execute(state.store.db.pool())
+    .await
+    .map_err(|e| AppError(PandaError::internal(format!("store sync operation: {e}"))))?;
+    Ok(())
 }
 
 pub async fn ws_handler(State(state): State<AppState>, ws: WebSocketUpgrade) -> impl IntoResponse {

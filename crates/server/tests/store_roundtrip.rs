@@ -100,6 +100,7 @@ async fn todo_updates_are_versioned_and_deletes_sync_as_tombstones() {
         .create(
             &workspace_id,
             store::TodoCreate {
+                id: None,
                 title: "Ship sync".into(),
                 note: "server first".into(),
                 status: Some("inbox".into()),
@@ -232,10 +233,7 @@ async fn register_creates_isolated_personal_workspace() {
         .await
         .unwrap();
 
-    let short = auth
-        .register("alice", "short", None)
-        .await
-        .unwrap_err();
+    let short = auth.register("alice", "short", None).await.unwrap_err();
     assert_eq!(short.code, domain::ErrorCode::InvalidArgument);
 
     let (user, token, alice_ws, _) = auth
