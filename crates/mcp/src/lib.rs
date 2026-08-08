@@ -151,7 +151,7 @@ impl McpHandler {
                         workspace_id,
                         required_string(&args, "name")?,
                         optional_string(&args, "parent_id").as_deref(),
-                        Some(bounded_i32(&args, "sort_order", 0)?),
+                        bounded_i32(&args, "sort_order", 0)?,
                     )
                     .await?;
                 json_value(notebook)
