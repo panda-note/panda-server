@@ -52,6 +52,8 @@ paths:
   /notebooks:
     get: { summary: List notebooks, responses: { '200': { description: Notebook list } } }
     post: { summary: Create notebook, responses: { '200': { description: Notebook } } }
+  /notebooks/reorder:
+    post: { summary: Reorder all sibling notebooks, responses: { '200': { description: Notebook list } } }
   /memos:
     get: { summary: List memo summaries, responses: { '200': { description: Cursor page } } }
     post: { summary: Create memo from Markdown, responses: { '200': { description: Memo detail } } }

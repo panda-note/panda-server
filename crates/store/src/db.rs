@@ -1,5 +1,5 @@
 use domain::{PandaError, PandaResult};
-use sqlx::{Sqlite, SqlitePool};
+use sqlx::SqlitePool;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

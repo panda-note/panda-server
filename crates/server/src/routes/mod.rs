@@ -35,6 +35,10 @@ pub fn router(state: AppState) -> Router {
             patch(misc_routes::rename_notebook).delete(misc_routes::delete_notebook),
         )
         .route(
+            "/api/v1/notebooks/reorder",
+            post(misc_routes::reorder_notebooks),
+        )
+        .route(
             "/api/v1/memos",
             get(memo_routes::list_memos).post(memo_routes::create_memo),
         )

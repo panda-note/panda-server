@@ -71,7 +71,7 @@ impl NotebookRepo<'_> {
         workspace_id: &str,
         name: &str,
         parent_id: Option<&str>,
-        sort_order: i32,
+        sort_order: Option<i32>,
     ) -> PandaResult<Notebook> {
         let _w = self.store.db.write().await;
         let now = now_rfc3339();
@@ -84,6 +84,17 @@ impl NotebookRepo<'_> {
             (format!("{}/{}", parent.path, id), parent.depth + 1)
         } else {
             (format!("/{id}"), 0)
+        };
+        let sort_order = match sort_order {
+            Some(sort_order) => sort_order,
+            None => sqlx::query_scalar::<_, i32>(
+                "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM notebooks WHERE workspace_id = ? AND parent_id IS ? AND is_deleted = 0",
+            )
+            .bind(workspace_id)
+            .bind(parent_id)
+            .fetch_one(self.store.db.pool())
+            .await
+            .map_err(|e| PandaError::internal(e.to_string()))?,
         };
 
         sqlx::query(
@@ -194,6 +205,84 @@ impl NotebookRepo<'_> {
             created_at: row.created_at,
             updated_at: now,
         })
+    }
+
+    /// Reorders a complete set of sibling notebooks. Supplying the complete set prevents a
+    /// stale client from silently dropping siblings from the ordering.
+    pub async fn reorder(
+        &self,
+        workspace_id: &str,
+        parent_id: Option<&str>,
+        notebook_ids: &[String],
+    ) -> PandaResult<Vec<Notebook>> {
+        let _w = self.store.db.write().await;
+        let siblings: Vec<(String,)> = sqlx::query_as(
+            "SELECT id FROM notebooks WHERE workspace_id = ? AND parent_id IS ? AND is_deleted = 0 ORDER BY sort_order, name",
+        )
+        .bind(workspace_id)
+        .bind(parent_id)
+        .fetch_all(self.store.db.pool())
+        .await
+        .map_err(|e| PandaError::internal(e.to_string()))?;
+        let sibling_ids = siblings.into_iter().map(|(id,)| id).collect::<Vec<_>>();
+        let supplied = notebook_ids
+            .iter()
+            .collect::<std::collections::HashSet<_>>();
+        if supplied.len() != notebook_ids.len()
+            || supplied.len() != sibling_ids.len()
+            || !sibling_ids.iter().all(|id| supplied.contains(id))
+        {
+            return Err(PandaError::invalid(
+                "notebook_ids must contain every sibling exactly once",
+            ));
+        }
+
+        let now = now_rfc3339();
+        let mut tx = self
+            .store
+            .db
+            .pool()
+            .begin()
+            .await
+            .map_err(|e| PandaError::internal(e.to_string()))?;
+        for (sort_order, id) in notebook_ids.iter().enumerate() {
+            sqlx::query(
+                "UPDATE notebooks SET sort_order = ?, updated_at = ? WHERE workspace_id = ? AND id = ?",
+            )
+            .bind(sort_order as i32)
+            .bind(&now)
+            .bind(workspace_id)
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| PandaError::internal(e.to_string()))?;
+        }
+        tx.commit()
+            .await
+            .map_err(|e| PandaError::internal(e.to_string()))?;
+
+        for (sort_order, id) in notebook_ids.iter().enumerate() {
+            self.store
+                .sync()
+                .append_unlocked(
+                    workspace_id,
+                    "notebook",
+                    id,
+                    "upsert",
+                    "meta",
+                    Some(
+                        &serde_json::json!({
+                            "id": id,
+                            "parent_id": parent_id,
+                            "sort_order": sort_order,
+                        })
+                        .to_string(),
+                    ),
+                    &format!("notebook:{id}"),
+                )
+                .await?;
+        }
+        self.list(workspace_id).await
     }
 
     pub async fn soft_delete(&self, workspace_id: &str, id: &str) -> PandaResult<()> {

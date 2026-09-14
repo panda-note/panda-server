@@ -8,7 +8,7 @@ use axum::response::{IntoResponse, Response};
 use domain::PandaError;
 use proto::{
     CreateNotebookRequest, HealthResponse, NotebookListResponse, RenameNotebookRequest,
-    TagListResponse, PROTOCOL_VERSION,
+    ReorderNotebooksRequest, TagListResponse, PROTOCOL_VERSION,
 };
 
 pub async fn health(headers: HeaderMap) -> impl IntoResponse {
@@ -58,7 +58,7 @@ pub async fn create_notebook(
             &ctx.workspace_id,
             &req.name,
             req.parent_id.as_deref(),
-            req.sort_order.unwrap_or(0),
+            req.sort_order,
         )
         .await?;
     Ok(proto_or_json(wants_protobuf(&headers), &nb))
@@ -78,6 +78,28 @@ pub async fn rename_notebook(
         .rename(&ctx.workspace_id, &id, &req.name)
         .await?;
     Ok(proto_or_json(wants_protobuf(&headers), &nb))
+}
+
+pub async fn reorder_notebooks(
+    State(state): State<AppState>,
+    AuthUser(ctx): AuthUser,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<impl IntoResponse, AppError> {
+    let req: ReorderNotebooksRequest = read_body_proto_or_json(&headers, body).await?;
+    let items = state
+        .store
+        .notebooks()
+        .reorder(
+            &ctx.workspace_id,
+            req.parent_id.as_deref(),
+            &req.notebook_ids,
+        )
+        .await?;
+    Ok(proto_or_json(
+        wants_protobuf(&headers),
+        &NotebookListResponse { items },
+    ))
 }
 
 pub async fn delete_notebook(
